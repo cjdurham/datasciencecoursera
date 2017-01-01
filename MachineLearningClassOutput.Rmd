@@ -1,0 +1,86 @@
+---
+title: "Machine Learning Results"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+In looking at the dataset it was clear that many variables were not complete or usable with the intent of predicting. For example, there are many missing data points as well as information like time stamps.  I started by removing those variables from the model and creating a new clean dataset that only has variables that could be used in predicting the classe variable.  
+
+From here, I built a cross validation model based to apply to the random forest prediction model.  The first step was to take my cleaned training set and divide it into a training and validation set.  This would allow me to test my results without touching the true test dataset.  Once complete, the program will run a random forest model on the training dataset.  The results would be used to predict the values on the validation dataset.  I stored these values in a results table and then ran the program 5 times changing the seed each time.  The results for the 5 runs are below.
+
+The mean prediction accuracy was 0.9958011. The range was 0.993 to 0.997.  These results appear to be highly accurate.  This means my out of sample error was less than 1% on all runs of the random forest model.  With this success, the model output was then used to predict on the true test dataset.  The results below were verified with the quiz system on Coursera and verified as accurate.  
+
+
+
+
+```{r results}
+
+# Set Working Directory
+setwd("/Users/ChrisDurham/Dropbox/Coursera/8. Machine Learning/Project/")
+
+
+# Load Libraries
+library(randomForest)
+
+
+## Read data
+train <- read.csv("pml-training.csv")
+test<-read.csv("pml-testing.csv")
+
+
+# Quick look @ the data
+# Ignore these lines for RMD file output
+# head(train)
+# str(train)
+# head(test)
+# str(test)
+
+
+## Select Columns
+trainclean<-train[,c(8:11,37:49,60:68,84:86,113:124,151:160)]
+testclean<-test[,c(8:11,37:49,60:68,84:86,113:124,151:160)]
+
+# Set a starting Seed
+Seed <- 1
+
+#Create a place to store results
+results <-c()
+
+# Run 5x loop for cross validation on Random Forest model
+for (i in 1:5){
+  set.seed(Seed)
+  # Change the Seed
+  Seed <- Seed+50
+  
+  #Partition into Train/Train and Train/Test
+  nrowstrainclean <- nrow(trainclean)
+  # For some reason the caret package partitioning causes R to fail on my computer
+  # I use an alternate method here to split into a 75% Train / 25% validation set
+  trainIndex <- sample(1:nrowstrainclean, size = round(0.75*nrowstrainclean), replace=FALSE)
+  traincleantraining <- trainclean[trainIndex ,]
+  traincleantesting <- trainclean[-trainIndex ,]
+  
+  # Run Random Forest & Predict Results
+  rforestresult<- randomForest(classe ~., data = traincleantraining)
+  prediction <- predict(rforestresult, traincleantesting)
+  
+  #Store Results
+  traincleantesting$PredictionCorrect <- prediction == traincleantesting$classe
+  resultstable<-table(prediction, traincleantesting$classe)
+  print(resultstable)
+  predresult <- sum(traincleantesting$PredictionCorrect)/nrow(traincleantesting)
+  results <- c(results,predresult)
+  print(predresult)
+}
+
+# Look @ overall result
+mean(results)
+
+# Apply to Test Clean Dataset
+PredictionOnTest <- predict(rforestresult, testclean)
+PredictionOnTest
+```
+
